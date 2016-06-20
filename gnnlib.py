@@ -30,13 +30,13 @@ elements:
 [2] S. R. Baskaraja, M. S. Manickavasagam, "Subgraph Matching Usring Graph Neural Network",
     Journal of Intelligent Learning Systems (online), Novermber 2012
 """
-
+import os
 import math as m
 import graphlib as gph
+import gnnconst as gct
 
 
 __author__ = "Edwin Heredia"
-__email__ = "edw.bizmail@yahoo.com"
 __copyright__ = "Copyright 2016"
 __license__ = "Not ready for distribution"
 __version__ = "0.0.4"
@@ -246,7 +246,7 @@ class NeuralNet(object):
     the number of outputs (num_outputs), and the activation function, which by default is
     set to "sigmoid".
     """
-    def __init__(self, num_inputs, num_hidden, num_outputs, activation="sigmoid"):
+    def __init__(self, num_inputs=0, num_hidden=0, num_outputs=0, activation="sigmoid"):
         self.num_inputs = num_inputs
         self.num_outputs = num_outputs
         self.num_hidden = num_hidden
@@ -261,6 +261,49 @@ class NeuralNet(object):
 
         zvec2 = [0]*num_hidden
         self.outcoeff = [zvec2]*num_outputs
+
+    def is_initialized(self):
+        """
+        Checks to see if the number of inputs, hidden units, and outputs have been defined
+        Returns:
+            True if they have been initialized to some non-zero value. Otherwise it returns False.
+        """
+        if self.num_inputs == 0 or self.num_hidden == 0 or self.num_outputs == 0:
+            return False
+        else:
+            return True
+
+    def initialize(self, num_inputs, num_hidden, num_outputs):
+        """
+        Initializes the vector dimensions that define a neural network. These values are often entered at the
+        time of instantiating a neural network object. These values can also be retrieved from a file. However,
+        this method can be used in case the user needs to manually initialize a network after instantiation.
+        Args:
+            num_inputs: (int) number of inputs in a neural network
+            num_hidden: (int) number of hidden units in a neural network
+            num_outputs: (int) number of outputs in a neural network
+        Returns:
+            If successful it returns 1. Otherwise it returns 0.
+        """
+
+        if num_inputs <= 0 or num_hidden <= 0 or num_outputs <= 0:
+            return 0
+        else:
+            self.num_inputs = num_inputs
+            self.num_outputs = num_outputs
+            self.num_hidden = num_hidden
+
+            # initialize coefficient matrices with zeros
+            # a matrix is stored as a list of lists (one list per node). There are two sets of coefficients:
+            # The ones that apply weights to the input (inpcoeff) and the ones that apply weights to generate
+            # the output (outcoeff)
+            zvec1 = [0] * num_inputs
+            self.inpcoeff = [zvec1] * num_hidden
+
+            zvec2 = [0] * num_hidden
+            self.outcoeff = [zvec2] * num_outputs
+
+            return 1
 
     def get_input_coeffs(self, hidden_index):
         """
@@ -360,3 +403,117 @@ class NeuralNet(object):
     def train(self, output_matrix, input_matrix):
         # todo: implement a NN training algorithm
         pass
+
+    def save(self, filepath):
+        """
+            Saves the neural network model to a file identified by its path. The file is a text file.
+
+            Args:
+                filepath: An absolute or relative path
+        """
+        # TODO: Optimize code 
+
+        with open(filepath, "w") as fp:
+            numinp_line = "inputs" + "\t" + str(self.num_inputs) + "\n"
+            numhid_line = "hidden" + "\t" + str(self.num_hidden) + "\n"
+            numout_line = "outputs" + "\t" + str(self.num_outputs) + "\n"
+
+            fp.write(numinp_line)
+            fp.write(numhid_line)
+            fp.write(numout_line)
+
+            for ind in range(self.num_hidden):
+                cvec = self.get_input_coeffs(ind)
+                cstr = [str(val) for val in cvec]
+                cline = "\t".join(cstr) + "\n"
+                fp.write(cline)
+
+            for ind in range(self.num_outputs):
+                kvec = self.get_output_coeffs(ind)
+                kstr = [str(val) for val in kvec]
+                kline = "\t".join(kstr) + "\n"
+                fp.write(kline)
+
+    def read(self, filepath):
+        """
+        Reads neural network coefficients from a file defined by its path
+        Args:
+            filepath: (string) The file path with neural network coefficients
+        Return:
+            If successful, it returns 1. Otherwise it returns 0.
+        """
+        # TODO: Check early termination of read loops and return an error
+        # TODO: Optimize code
+
+        if not os.path.isfile(filepath):
+            return 0
+
+        error_found = False
+        with open(filepath, "r") as fp:
+            line = fp.readline()
+            inp = int(line.strip().split("\t")[1])
+            line = fp.readline()
+            hid = int(line.strip().split("\t")[1])
+            line = fp.readline()
+            out = int(line.strip().split("\t")[1])
+
+            print inp, hid, out
+
+            if inp <= 0 or hid <= 0 or out <= 0:
+                error_found = True
+            elif inp > gct.MAX_INPUTS or hid > gct.MAX_HIDDEN or out > gct.MAX_OUTPUTS:
+                error_found = True
+            else:
+                self.initialize(inp, hid, out)
+
+                for ind in range(hid):
+                    line = fp.readline()
+                    cvals = line.strip().split("\t")
+                    coeff = [float(val) for val in cvals]
+
+                    if len(coeff) != inp:
+                        error_found = True
+                        break
+                    else:
+                        self.update_input_coeffs(ind, coeff)
+
+                if not error_found:
+                    for ind in range(out):
+                        line = fp.readline()
+                        cvals = line.strip().split("\t")
+                        coeff = [float(val) for val in cvals]
+
+                        if len(coeff) != hid:
+                            error_found = True
+                            break
+                        else:
+                            self.update_output_coeffs(ind, coeff)
+
+            if error_found:
+                return 0
+            else:
+                return 1
+
+
+if __name__ == "__main__":
+    number_inputs = 3
+    number_hidden = 4
+    number_outputs = 2
+    nn = NeuralNet(number_inputs, number_hidden, number_outputs)
+
+    nn.update_input_coeffs(0, [0, 1, 1])
+    nn.update_input_coeffs(1, [1, 0, 0])
+    nn.update_input_coeffs(2, [2, 0, 1])
+    nn.update_input_coeffs(3, [0, -1, -1])
+
+    nn.update_output_coeffs(0, [0, 1, 0, 1])
+    nn.update_output_coeffs(1, [0.5, 0, 0, 2])
+
+    nn.save("netsample.nnf")
+
+    n2 = NeuralNet()
+    res = n2.read("netsample.nnf")
+
+    print "result of reading: ", res
+
+    n2.save("nntest.nnf")

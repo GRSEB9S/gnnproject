@@ -21,7 +21,6 @@ import os
 import sys
 
 __author__ = "Edwin Heredia"
-__email__ = "edw.bizmail@yahoo.com"
 __copyright__ = "Copyright 2016"
 __license__ = "Not ready for distribution"
 __version__ = "0.0.8"
