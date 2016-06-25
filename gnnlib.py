@@ -31,9 +31,11 @@ elements:
     Journal of Intelligent Learning Systems (online), Novermber 2012
 """
 import os
+
 import math as m
 import graphlib as gph
 import gnnconst as gct
+import responder as resp
 
 
 __author__ = "Edwin Heredia"
@@ -273,25 +275,29 @@ class NeuralNet(object):
         else:
             return True
 
-    def initialize(self, num_inputs, num_hidden, num_outputs):
+    def initialize(self, num_inputs, num_hidden, num_outputs, activation="sigmoid"):
         """
         Initializes the vector dimensions that define a neural network. These values are often entered at the
-        time of instantiating a neural network object. These values can also be retrieved from a file. However,
-        this method can be used in case the user needs to manually initialize a network after instantiation.
+        time of instantiating a neural network object. These values can also be retrieved from a file, in which
+        case this function is used programatically to initialize values.
         Args:
             num_inputs: (int) number of inputs in a neural network
             num_hidden: (int) number of hidden units in a neural network
             num_outputs: (int) number of outputs in a neural network
+            activation: (string) identifier for the activation function
         Returns:
             If successful it returns 1. Otherwise it returns 0.
         """
 
         if num_inputs <= 0 or num_hidden <= 0 or num_outputs <= 0:
             return 0
+        elif not self.is_activation(activation):
+            return 0
         else:
             self.num_inputs = num_inputs
             self.num_outputs = num_outputs
             self.num_hidden = num_hidden
+            self.activation = activation
 
             # initialize coefficient matrices with zeros
             # a matrix is stored as a list of lists (one list per node). There are two sets of coefficients:
@@ -400,6 +406,20 @@ class NeuralNet(object):
             output = 1 if value > 0 else 0
         return output
 
+    def is_activation(self, function_name):
+        """
+        Checks if the function name corresponds to an activation function
+        Arges:
+            function_name: (string) User-entered activation function
+        Returns:
+            True if the function_name is one of the available activation functions.
+            False otherwise.
+        """
+        if function_name == 'sigmoid':
+            return True
+        else:
+            return False
+
     def train(self, output_matrix, input_matrix):
         # todo: implement a NN training algorithm
         pass
@@ -410,29 +430,41 @@ class NeuralNet(object):
 
             Args:
                 filepath: An absolute or relative path
+            Returns:
+                An outcome message with a simple OK or with an error message
         """
-        # TODO: Optimize code 
 
-        with open(filepath, "w") as fp:
-            numinp_line = "inputs" + "\t" + str(self.num_inputs) + "\n"
-            numhid_line = "hidden" + "\t" + str(self.num_hidden) + "\n"
-            numout_line = "outputs" + "\t" + str(self.num_outputs) + "\n"
+        if self.num_inputs == 0 or self.num_hidden == 0 or self.num_outputs == 0:
+            return resp.error("nn_init")
 
-            fp.write(numinp_line)
-            fp.write(numhid_line)
-            fp.write(numout_line)
+        try:
+            with open(filepath, "w") as fp:
+                numinp_line = "inputs" + "\t" + str(self.num_inputs) + "\n"
+                numhid_line = "hidden" + "\t" + str(self.num_hidden) + "\n"
+                numout_line = "outputs" + "\t" + str(self.num_outputs) + "\n"
+                activ_line = "activation" + "\t" + self.activation + "\n"
 
-            for ind in range(self.num_hidden):
-                cvec = self.get_input_coeffs(ind)
-                cstr = [str(val) for val in cvec]
-                cline = "\t".join(cstr) + "\n"
-                fp.write(cline)
+                fp.write(numinp_line)
+                fp.write(numhid_line)
+                fp.write(numout_line)
+                fp.write(activ_line)
 
-            for ind in range(self.num_outputs):
-                kvec = self.get_output_coeffs(ind)
-                kstr = [str(val) for val in kvec]
-                kline = "\t".join(kstr) + "\n"
-                fp.write(kline)
+                for ind in range(self.num_hidden):
+                    cvec = self.get_input_coeffs(ind)
+                    cstr = [str(val) for val in cvec]
+                    cline = "\t".join(cstr) + "\n"
+                    fp.write(cline)
+
+                for ind in range(self.num_outputs):
+                    kvec = self.get_output_coeffs(ind)
+                    kstr = [str(val) for val in kvec]
+                    kline = "\t".join(kstr) + "\n"
+                    fp.write(kline)
+
+            return resp.ok("na", "na")
+
+        except IOError:
+            return resp.error("file_open")
 
     def read(self, filepath):
         """
@@ -440,13 +472,12 @@ class NeuralNet(object):
         Args:
             filepath: (string) The file path with neural network coefficients
         Return:
-            If successful, it returns 1. Otherwise it returns 0.
+            An outcome message with a simple OK or with an error message
         """
-        # TODO: Check early termination of read loops and return an error
-        # TODO: Optimize code
+        # TODO: Check early termination of read loops and return an error?
 
         if not os.path.isfile(filepath):
-            return 0
+            return resp.error("not_found")
 
         error_found = False
         with open(filepath, "r") as fp:
@@ -457,14 +488,20 @@ class NeuralNet(object):
             line = fp.readline()
             out = int(line.strip().split("\t")[1])
 
-            print inp, hid, out
+            line = fp.readline()
+            activ = line.strip().split("\t")[1]
 
             if inp <= 0 or hid <= 0 or out <= 0:
                 error_found = True
+
             elif inp > gct.MAX_INPUTS or hid > gct.MAX_HIDDEN or out > gct.MAX_OUTPUTS:
                 error_found = True
+
+            elif not self.is_activation(activ):
+                error_found = True
+
             else:
-                self.initialize(inp, hid, out)
+                self.initialize(inp, hid, out, activ)
 
                 for ind in range(hid):
                     line = fp.readline()
@@ -490,9 +527,9 @@ class NeuralNet(object):
                             self.update_output_coeffs(ind, coeff)
 
             if error_found:
-                return 0
+                return resp.error("data_parse")
             else:
-                return 1
+                return resp.ok("na", "na")
 
 
 if __name__ == "__main__":
@@ -509,11 +546,22 @@ if __name__ == "__main__":
     nn.update_output_coeffs(0, [0, 1, 0, 1])
     nn.update_output_coeffs(1, [0.5, 0, 0, 2])
 
-    nn.save("netsample.nnf")
+    print "saving created NN into a file called nncreated.nnf"
+    res = nn.save("nncreated.nnf")
+
+    if res["status"] == "error":
+        print res["message"]
+        os.sys.exit(1)
 
     n2 = NeuralNet()
-    res = n2.read("netsample.nnf")
+    print "reading NN from file nncreated.nnf"
+    res = n2.read("nncreated.nnf")
 
-    print "result of reading: ", res
+    if res["status"] == "error":
+        print res["message"]
+        os.sys.exit(1)
 
+    print "result of reading: ", res["status"]
+
+    print "saving imported NN into a file called nntest.nnf"
     n2.save("nntest.nnf")
