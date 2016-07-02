@@ -31,6 +31,7 @@ elements:
     Journal of Intelligent Learning Systems (online), Novermber 2012
 """
 import os
+import sys
 
 import math as m
 import graphlib as gph
@@ -391,6 +392,30 @@ class NeuralNet(object):
             yvec.append(self.activfun(combination_out))
 
         return yvec
+
+    def compute_datafile(self):
+        """
+        Computes the output of a neural network for data stored in a file. The function
+        reads the file from stdin and writes the result to stdout
+
+        Returns:
+            An outcome message with a simple OK or an error message
+        """
+
+        for line in sys.stdin:
+            raw_values = line.strip().split()
+            if len(raw_values) == self.num_inputs:
+                real_values = [float(val) for val in raw_values]
+                outvals = self.compute_output(real_values)
+                if outvals:
+                    strvals = [str(val) for val in outvals]
+                    print "    ".join(strvals)
+                else:
+                    print "error"
+            else:
+                print "error"
+
+        return resp.ok("na", "na")
 
     def activfun(self, value):
         """

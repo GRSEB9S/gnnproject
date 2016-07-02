@@ -37,7 +37,7 @@ def error(error_type):
         error_text = errmsg["unknown"][LNG]
 
     outcome = {
-        "result": "error",
+        "status": "error",
         "message": error_text
     }
 
